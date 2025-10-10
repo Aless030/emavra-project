@@ -1,0 +1,47 @@
+# Excluir el symlink problemático
+public/storage
+
+# Dependencias que se instalan en el contenedor
+node_modules
+vendor
+
+# Archivos de entorno
+.env
+.env.backup
+.env.production
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDEs
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+storage/logs/*
+
+# Cache
+.phpunit.result.cache
+bootstrap/cache/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+
+# Testing
+.phpunit.cache
+coverage
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Otros
+*.key
+npm-debug.log
+yarn-error.log

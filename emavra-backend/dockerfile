@@ -1,0 +1,59 @@
+FROM php:8.2-fpm
+
+# Instalar dependencias del sistema para GD
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    zip \
+    unzip \
+    libjpeg-dev \
+    libfreetype6-dev \
+    libwebp-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Configurar GD con soporte completo ANTES de instalarlo
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp
+
+# Instalar extensiones de PHP
+RUN docker-php-ext-install -j$(nproc) \
+    pdo \
+    pdo_mysql \
+    mbstring \
+    exif \
+    pcntl \
+    bcmath \
+    gd
+
+# Instalar Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# Configurar directorio de trabajo
+WORKDIR /var/www
+
+# Copiar todo desde el contexto (emavra-backend)
+COPY . .
+
+# Instalar dependencias de Composer
+RUN composer install --no-dev --optimize-autoloader
+
+# ✅ NUEVO: Crear directorios de storage
+RUN mkdir -p storage/app/public/trees \
+    && mkdir -p storage/app/public/pdfs \
+    && mkdir -p storage/app/public/qr_codes \
+    && mkdir -p bootstrap/cache
+
+# ✅ NUEVO: Crear storage link
+RUN php artisan storage:link || true
+
+# Configurar permisos
+RUN chown -R www-data:www-data /var/www \
+    && chmod -R 775 /var/www/storage /var/www/bootstrap/cache
+
+# Exponer puerto 9000 para PHP-FPM
+EXPOSE 9000
+
+# Iniciar PHP-FPM
+CMD ["php-fpm"]

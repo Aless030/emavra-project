@@ -1,0 +1,132 @@
+services:
+  # ==================
+  # NGINX (Reverse Proxy)
+  # ==================
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-emavra-project
+    ports:
+      - "80:80"
+    volumes:
+      - ./emavra-backend:/var/www
+      - ./emavra-backend/nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+
+    depends_on:
+      - laravel
+    networks:
+      - laravel_net
+
+  # ==================
+  # MYSQL DATABASE
+  # ==================
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-emavra
+    restart: unless-stopped
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: reforest
+      MYSQL_USER: emavra_user
+      MYSQL_PASSWORD: emavra_pass
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - laravel_net
+
+  # ==================
+  # PHPMYADMIN
+  # ==================
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin-emavra
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: root
+    depends_on:
+      - mysql
+    networks:
+      - laravel_net
+
+  # ==================
+  # LARAVEL BACKEND
+  # ==================
+  laravel:
+    build:
+      context: ./emavra-backend
+      dockerfile: dockerfile
+    container_name: server-laravel
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./emavra-backend:/var/www
+      # CRÍTICO: Usar volúmenes nombrados en lugar de anónimos
+      - laravel_vendor:/var/www/vendor
+      - laravel_node_modules:/var/www/node_modules
+      # NUEVO: Persistir storage
+      #- laravel_storage:/var/www/storage/app/public
+    depends_on:
+      - mysql
+    environment:
+      - DB_CONNECTION=mysql
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=reforest
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+      # NUEVO: URL correcta para assets
+      - APP_URL=http://localhost
+      - FILESYSTEM_DISK=public
+    networks:
+      - laravel_net
+
+  # ==================
+  # REACT FRONTEND (Create React App)
+  # ==================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: dev
+    container_name: frontend-react
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    environment:
+      - NODE_ENV=development
+      # CORREGIDO: URL sin /api/v1 para storage
+      - REACT_APP_API_URL=http://localhost/api/v1
+      - REACT_APP_STORAGE_URL=http://localhost/storage
+      - REACT_APP_MAPBOX_TOKEN=pk.eyJ1IjoiYXN0cm9ub21pY2dhbWVzIiwiYSI6ImNtNWM2ZGt0ZzA1Y2Mya3B6eXl5MWxjM3BjeXRzImUiOiJiGcxbHtbHQwdDU5M2RubDFodGpjYz3xIn0.NXe43GdM4PJBj7ow0DnKpw
+    stdin_open: true
+    tty: true
+    networks:
+      - laravel_net
+
+networks:
+  laravel_net:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local
+  # NUEVO: Volúmenes nombrados para persistencia
+  laravel_vendor:
+    driver: local
+  laravel_node_modules:
+    driver: local
+  laravel_storage:
+    driver: local
+  frontend_node_modules:
+    driver: local
