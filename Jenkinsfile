@@ -4,7 +4,7 @@ pipeline {
     environment {
         BACKEND_IMAGE = 'emavra-backend'
         FRONTEND_IMAGE = 'emavra-frontend'
-        GIT_REPO = 'https://tu-repositorio-git.com/emavra.git'
+        GIT_REPO = 'https://github.com/Aless030/emavra-project.git'
     }
     
     stages {
