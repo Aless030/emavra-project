@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    public function up(): void
+    public function up()
     {
         Schema::create('arboles', function (Blueprint $table) {
             $table->id();
@@ -30,13 +30,15 @@ return new class extends Migration
             $table->string('qrUrl')->nullable();
             $table->date('fecha_registro')->nullable();
             $table->time('hora_registro')->nullable();
-            // Para coordenadas geográficas con PostGIS
-            $table->geometry('coordenadas', 'point')->nullable();
+            
+            // ✅ Cambio: JSON en lugar de geometry
+            $table->json('coordenadas')->nullable()->comment('Coordenadas geográficas {lat, lng}');
+            
             $table->timestamps();
         });
     }
 
-    public function down(): void
+    public function down()
     {
         Schema::dropIfExists('arboles');
     }

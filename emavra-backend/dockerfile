@@ -1,6 +1,6 @@
 FROM php:8.3-fpm
 
-# Instalar dependencias del sistema
+# Instalar dependencias del sistema (incluye libicu-dev para intl)
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -13,8 +13,10 @@ RUN apt-get update && apt-get install -y \
     libzip-dev \
     libfreetype6-dev \
     libjpeg62-turbo-dev \
+    libicu-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) gd \
+    && docker-php-ext-configure intl \
+    && docker-php-ext-install -j$(nproc) gd intl \
     && docker-php-ext-install pdo_pgsql pgsql mbstring exif pcntl bcmath zip
 
 # Limpiar cache
@@ -26,11 +28,17 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Configurar directorio de trabajo
 WORKDIR /var/www
 
-# Copiar archivos de la aplicación
-COPY . .
+# Copiar archivos de composer primero (para aprovechar cache de Docker)
+COPY composer.json composer.lock ./
 
 # Instalar dependencias de PHP
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
+
+# Copiar el resto de archivos de la aplicación
+COPY . .
+
+# Completar instalación de Composer (scripts post-install)
+RUN composer dump-autoload --optimize
 
 # Crear directorios necesarios y dar permisos
 RUN mkdir -p storage/app/public/trees \
@@ -44,10 +52,12 @@ RUN mkdir -p storage/app/public/trees \
     && chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
-# Crear enlace simbólico para storage
-RUN php artisan storage:link || true
-
 # Exponer puerto 9000 para PHP-FPM
 EXPOSE 9000
 
+# Script de inicio
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["php-fpm"]

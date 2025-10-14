@@ -1,14 +1,9 @@
-version: '3.8'
-
 services:
-  # ==================
-  # BACKEND - PHP-FPM (Laravel)
-  # ==================
   backend:
     build:
       context: ./emavra-backend
       dockerfile: Dockerfile
-    container_name: emavra-backend-prod
+    container_name: emavra-backend-dev
     restart: unless-stopped
     working_dir: /var/www
     volumes:
@@ -17,40 +12,30 @@ services:
       - backend_cache:/var/www/bootstrap/cache
       - backend_vendor:/var/www/vendor
     environment:
-      # PostgreSQL REMOTO (192.168.104.201)
       - DB_CONNECTION=pgsql
       - DB_HOST=192.168.104.201
       - DB_PORT=5432
       - DB_DATABASE=emavraforestaldb_dev
       - DB_USERNAME=emavraforestal_user
       - DB_PASSWORD=emavraforestal_pass
-      
-      # App Settings
       - APP_NAME=EMAVRA
-      - APP_ENV=production
-      - APP_DEBUG=false
-      - APP_URL=http://192.168.104.201:8001
+      - APP_ENV=development
+      - APP_DEBUG=true
+      - APP_URL=http://192.168.104.201:8002
       - APP_KEY=base64:efdnbli2ujgcV4JEgrdhFo3eP1nUpBhGrzy7CCj3MfA=
-      
-      # Frontend URL para CORS
-      - FRONTEND_URL=http://192.168.104.201:8002
-      - SANCTUM_STATEFUL_DOMAINS=192.168.104.201:8002
+      - FRONTEND_URL=http://192.168.104.201:8001
+      - SANCTUM_STATEFUL_DOMAINS=192.168.104.201:8001
       - SESSION_DOMAIN=.192.168.104.201
-      
-      # Storage
       - FILESYSTEM_DISK=public
     networks:
       - emavra_network
 
-  # ==================
-  # NGINX - Servidor web para Laravel (Puerto 8001)
-  # ==================
   nginx:
     image: nginx:alpine
-    container_name: emavra-nginx-prod
+    container_name: emavra-nginx-dev
     restart: unless-stopped
     ports:
-      - "8001:80"  # Puerto externo:interno
+      - "8002:80"  # ⬅BACKEND 8002
     volumes:
       - ./emavra-backend:/var/www
       - ./emavra-backend/nginx/nginx.conf:/etc/nginx/conf.d/default.conf
@@ -60,22 +45,18 @@ services:
     networks:
       - emavra_network
 
-  # ==================
-  # FRONTEND - React (Puerto 8002)
-  # ==================
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      target: production
       args:
-        - REACT_APP_API_URL=http://192.168.104.201:8001/api
-        - REACT_APP_STORAGE_URL=http://192.168.104.201:8001/storage
+        - REACT_APP_API_URL=http://192.168.104.201:8002/api
+        - REACT_APP_STORAGE_URL=http://192.168.104.201:8002/storage
         - REACT_APP_MAPBOX_TOKEN=pk.eyJ1IjoiYWxlc3NpcyIsImEiOiJjbGcxbHBtbHQwdDU5M2RubDFodjY3a2x0In0.NXe43GdM4PJBj7ow0Dnkpw
-    container_name: emavra-frontend-prod
+    container_name: emavra-frontend-dev
     restart: unless-stopped
     ports:
-      - "8002:80"  # Cambiado de 8002:8002 a 8002:80
+      - "8001:80"  #FRONTEND puerto 8001
     depends_on:
       - nginx
     networks:

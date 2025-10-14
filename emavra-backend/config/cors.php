@@ -1,26 +1,17 @@
 <?php
 
 return [
-
-    /*
-    |--------------------------------------------------------------------------
-    | Cross-Origin Resource Sharing (CORS) Configuration
-    |--------------------------------------------------------------------------
-    */
-
     'paths' => ['api/*', 'sanctum/csrf-cookie', 'storage/*'],
-
     'allowed_methods' => ['*'],
-
     'allowed_origins' => [
         'http://localhost:3000',
         'http://127.0.0.1:3000',
-        'http://localhost:3000',
-        'http://127.0.0.1:3000',// ⬅️ BACKEND EN PRODUCCIÓN
+        'http://localhost:8001',  // ⬅️ FRONTEND local
+        'http://127.0.0.1:8001',
+        'http://192.168.104.201:8001',  // ⬅️ FRONTEND DEV
+        'http://192.168.104.201:8002',  // ⬅️ BACKEND DEV
     ],
-
     'allowed_origins_patterns' => [],
-
     'allowed_headers' => [
         'Content-Type',
         'X-Requested-With',
@@ -30,7 +21,6 @@ return [
         'Access-Control-Request-Method',
         'Access-Control-Request-Headers',
     ],
-
     'exposed_headers' => [
         'Cache-Control',
         'Content-Language',
@@ -39,9 +29,6 @@ return [
         'Last-Modified',
         'Pragma',
     ],
-
     'max_age' => 3600,
-
-    'supports_credentials' => false,
-
+    'supports_credentials' => true,
 ];
