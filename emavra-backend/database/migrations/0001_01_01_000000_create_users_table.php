@@ -29,17 +29,21 @@ return new class extends Migration
             $table->text('estado_fitosanitario')->nullable();
             $table->string('pdfUrl', 500)->nullable();
             $table->string('qrUrl', 500)->nullable();
+            
+            // Tus campos personalizados de fecha/hora
             $table->date('fecha_registro');
             $table->time('hora_registro');
-            $table->timestamps();
             
+            // ❌ ELIMINADO: $table->timestamps(); 
+            
+            // Índices para optimizar búsquedas
             $table->index('codigo_arbol');
             $table->index('fecha_registro');
             $table->index('estado');
         });
 
-        // Agregar columna espacial NOT NULL con valor por defecto POINT(0, 0)
-        DB::statement('ALTER TABLE arboles ADD coordenadas POINT NOT NULL DEFAULT (POINT(0, 0)) AFTER longitud');
+        // Agregar columna espacial NULLABLE para evitar errores en inserciones iniciales
+        DB::statement('ALTER TABLE arboles ADD coordenadas POINT NULL AFTER longitud');
         DB::statement('CREATE SPATIAL INDEX coordenadas_spatial ON arboles(coordenadas)');
     }
 
