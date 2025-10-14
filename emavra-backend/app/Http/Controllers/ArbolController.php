@@ -10,7 +10,6 @@ use Illuminate\Support\Facades\DB;
 use Endroid\QrCode\QrCode;
 use Endroid\QrCode\Writer\PngWriter;
 
-
 class ArbolController extends Controller
 {
     /**
@@ -23,10 +22,11 @@ class ArbolController extends Controller
             'altura', 'diametroTronco', 'diametro_copa', 'codigo_arbol',
             'latitud', 'longitud', 'propiedad', 'otb', 'nombre_area_verde',
             'inspector', 'estado_fitosanitario', 'pdfUrl', 'qrUrl',
-            DB::raw("DATE_FORMAT(fecha_registro, '%d/%m/%Y') as fecha_formato"),
+            // ✅ CAMBIADO: PostgreSQL usa TO_CHAR en lugar de DATE_FORMAT
+            DB::raw("TO_CHAR(fecha_registro, 'DD/MM/YYYY') as fecha_formato"),
             'hora_registro',
-            // CORREGIDO: Manejar NULL en coordenadas
-            DB::raw("IFNULL(ST_AsText(coordenadas), NULL) as coordenadas")
+            // ✅ CAMBIADO: PostgreSQL usa ST_AsText (igual que MySQL pero con COALESCE)
+            DB::raw("COALESCE(ST_AsText(coordenadas), NULL) as coordenadas")
         ])->orderBy('fecha_registro', 'desc')
           ->orderBy('hora_registro', 'desc')
           ->get();
@@ -44,10 +44,11 @@ class ArbolController extends Controller
             'altura', 'diametroTronco', 'diametro_copa', 'codigo_arbol',
             'latitud', 'longitud', 'propiedad', 'otb', 'nombre_area_verde',
             'inspector', 'estado_fitosanitario', 'pdfUrl', 'qrUrl',
-            DB::raw("DATE_FORMAT(fecha_registro, '%d/%m/%Y') as fecha_formato"),
+            // ✅ CAMBIADO: PostgreSQL
+            DB::raw("TO_CHAR(fecha_registro, 'DD/MM/YYYY') as fecha_formato"),
             'hora_registro',
-            // CORREGIDO: Manejar NULL en coordenadas
-            DB::raw("IFNULL(ST_AsText(coordenadas), NULL) as coordenadas")
+            // ✅ CAMBIADO: COALESCE en lugar de IFNULL
+            DB::raw("COALESCE(ST_AsText(coordenadas), NULL) as coordenadas")
         ])->findOrFail($id);
 
         return response()->json($arbol);
@@ -133,10 +134,10 @@ class ArbolController extends Controller
 
             $arbol->save();
 
-            // Actualizar coordenadas espaciales
+            // ✅ CAMBIADO: Actualizar coordenadas espaciales en PostgreSQL
             if ($arbol->latitud && $arbol->longitud) {
                 DB::statement(
-                    "UPDATE arboles SET coordenadas = POINT(?, ?) WHERE id = ?",
+                    "UPDATE arboles SET coordenadas = ST_SetSRID(ST_MakePoint(?, ?), 4326) WHERE id = ?",
                     [$arbol->longitud, $arbol->latitud, $arbol->id]
                 );
             }
@@ -148,7 +149,6 @@ class ArbolController extends Controller
                 $arbol->save();
             } catch (\Exception $e) {
                 \Log::error('Error generando QR: ' . $e->getMessage());
-                // No fallar todo el registro si el QR falla
             }
 
             return response()->json([
@@ -176,7 +176,6 @@ class ArbolController extends Controller
     {
         $arbol = Arbol::findOrFail($id);
 
-        // Log para debug
         \Log::info('Update request', [
             'id' => $id,
             'has_foto' => $request->hasFile('foto'),
@@ -184,7 +183,6 @@ class ArbolController extends Controller
             'all_data' => $request->except(['foto', 'pdf', '_method'])
         ]);
 
-        // Validación más completa
         $validator = Validator::make($request->all(), [
             'especie' => 'nullable|string|max:255',
             'nombre_comun' => 'nullable|string|max:255',
@@ -213,7 +211,6 @@ class ArbolController extends Controller
         try {
             // Actualizar imagen
             if ($request->hasFile('foto')) {
-                // Validar manualmente que sea imagen
                 $file = $request->file('foto');
                 $allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
                 
@@ -224,25 +221,21 @@ class ArbolController extends Controller
                     ], 422);
                 }
 
-                // Eliminar imagen anterior
                 if ($arbol->fotoUrl) {
                     Storage::disk('public')->delete($arbol->fotoUrl);
                 }
                 $arbol->fotoUrl = $this->processImage($request->file('foto'));
-                \Log::info('Imagen actualizada: ' . $arbol->fotoUrl);
             }
 
             // Actualizar PDF
             if ($request->hasFile('pdf')) {
-                // Eliminar PDF anterior
                 if ($arbol->pdfUrl) {
                     Storage::disk('public')->delete($arbol->pdfUrl);
                 }
                 $arbol->pdfUrl = $this->processPdf($request->file('pdf'));
-                \Log::info('PDF actualizado: ' . $arbol->pdfUrl);
             }
 
-            // Actualizar todos los campos de texto
+            // Actualizar campos
             $fieldsToUpdate = [
                 'especie', 'nombre_comun', 'edad', 'estado', 'altura',
                 'diametroTronco', 'diametro_copa', 'codigo_arbol',
@@ -253,13 +246,10 @@ class ArbolController extends Controller
             foreach ($fieldsToUpdate as $field) {
                 if ($request->has($field)) {
                     $arbol->$field = $request->input($field);
-                    \Log::info("Campo actualizado: $field = " . $request->input($field));
                 }
             }
 
             $arbol->save();
-
-            \Log::info('Árbol actualizado exitosamente', ['id' => $id]);
 
             return response()->json([
                 'success' => true,
@@ -269,7 +259,6 @@ class ArbolController extends Controller
 
         } catch (\Exception $e) {
             \Log::error('Error en update: ' . $e->getMessage());
-            \Log::error('Stack trace: ' . $e->getTraceAsString());
             
             return response()->json([
                 'success' => false,
@@ -286,7 +275,6 @@ class ArbolController extends Controller
         try {
             $arbol = Arbol::findOrFail($id);
 
-            // Eliminar archivos
             if ($arbol->fotoUrl && Storage::disk('public')->exists($arbol->fotoUrl)) {
                 Storage::disk('public')->delete($arbol->fotoUrl);
             }
@@ -312,9 +300,6 @@ class ArbolController extends Controller
         }
     }
 
-    /**
-     * Procesar imagen con compresión
-     */
     private function processImage($file)
     {
         $filename = 'trees/' . uniqid('tree_') . '.jpg';
@@ -325,7 +310,6 @@ class ArbolController extends Controller
             mkdir($dir, 0755, true);
         }
 
-        // USAR GD DIRECTAMENTE
         $manager = new \Intervention\Image\ImageManager(['driver' => 'gd']);
         $image = $manager->make($file->getRealPath());
         
@@ -340,35 +324,24 @@ class ArbolController extends Controller
         return $filename;
     }
 
-    /**
-     * Procesar PDF - CORREGIDO
-     */
     private function processPdf($file)
     {
         $filename = uniqid('pdf_') . '.pdf';
-        
-        // Usar el método de Laravel directamente
         $path = $file->storeAs('pdfs', $filename, 'public');
-        
         return $path;
     }
 
-    /**
-     * Generar código QR
-     */
     private function generateQR($treeId)
     {
         $url = config('app.frontend_url', 'http://localhost:3000') . '/?tree_id=' . $treeId . '#map';
         $filename = 'qr_codes/qr_' . $treeId . '.png';
         $path = storage_path('app/public/' . $filename);
 
-        // Crear directorio si no existe
         $dir = dirname($path);
         if (!file_exists($dir)) {
             mkdir($dir, 0755, true);
         }
 
-        // Generar QR
         $qrCode = new QrCode($url);
         $writer = new PngWriter();
         $result = $writer->write($qrCode);

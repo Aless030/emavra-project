@@ -34,15 +34,13 @@ class Arbol extends Model
 
     public $timestamps = false;
 
-    // CORREGIDO: Usar 'saved' en lugar de 'saving'
-    // 'saved' se ejecuta DESPUÉS de que el registro tiene ID
     protected static function booted()
     {
         static::saved(function ($arbol) {
             if ($arbol->latitud && $arbol->longitud && $arbol->id) {
-                // Actualizar coordenadas automáticamente DESPUÉS de guardar
+                // ✅ CAMBIADO: PostgreSQL/PostGIS syntax
                 DB::statement(
-                    "UPDATE arboles SET coordenadas = POINT(?, ?) WHERE id = ?",
+                    "UPDATE arboles SET coordenadas = ST_SetSRID(ST_MakePoint(?, ?), 4326) WHERE id = ?",
                     [$arbol->longitud, $arbol->latitud, $arbol->id]
                 );
             }

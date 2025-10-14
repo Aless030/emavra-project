@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  # ==================
+  # LARAVEL BACKEND (Puerto 8001)
+  # ==================
+  backend:
+    build:
+      context: ./emavra-backend
+      dockerfile: dockerfile
+    container_name: emavra-backend-prod
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./emavra-backend:/var/www
+      - backend_vendor:/var/www/vendor
+      - backend_storage:/var/www/storage
+    environment:
+      # ✅ PostgreSQL REMOTO (el de producción)
+      - DB_CONNECTION=pgsql
+      - DB_HOST=192.168.104.201
+      - DB_PORT=5432
+      - DB_DATABASE=emavraforestaldb_dev
+      - DB_USERNAME=emavraforestal_user
+      - DB_PASSWORD=emavraforestal_pass
+      
+      # App Settings
+      - APP_NAME=EMAVRA
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - APP_URL=http://TU_DOMINIO_O_IP:8001
+      
+      # Frontend URL para CORS
+      - FRONTEND_URL=http://TU_DOMINIO_O_IP:8002
+      - SANCTUM_STATEFUL_DOMAINS=TU_DOMINIO_O_IP:8002
+      
+      # Storage
+      - FILESYSTEM_DISK=public
+    networks:
+      - emavra_network
+
+  # ==================
+  # REACT FRONTEND (Puerto 8002)
+  # ==================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: dockerfile
+      target: production
+      args:
+        - REACT_APP_API_URL=http://TU_DOMINIO_O_IP:8001/api/v1
+        - REACT_APP_STORAGE_URL=http://TU_DOMINIO_O_IP:8001/storage
+        - REACT_APP_MAPBOX_TOKEN=pk.eyJ1IjoiYXN0cm9ub21pY2dhbWVzIiwiYSI6ImNtNWM2ZGt0ZzA1Y2Mya3B6eXl5MWxjM3BjeXRzImUiOiJiGcxbHtbHQwdDU5M2RubDFodGpjYj3xIn0.NXe43GdM4PJBj7ow0DnKpw
+    container_name: emavra-frontend-prod
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    depends_on:
+      - backend
+    networks:
+      - emavra_network
+
+networks:
+  emavra_network:
+    driver: bridge
+
+volumes:
+  backend_vendor:
+    driver: local
+  backend_storage:
+    driver: local

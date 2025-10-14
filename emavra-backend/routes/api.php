@@ -10,30 +10,19 @@ use App\Http\Controllers\ArbolController;
 |--------------------------------------------------------------------------
 */
 
-// Rutas públicas (sin autenticación)
-Route::prefix('v1')->group(function () {
-    // Obtener todos los árboles
-    Route::get('/arboles', [ArbolController::class, 'index']);
-    
-    // Obtener un árbol específico
-    Route::get('/arboles/{id}', [ArbolController::class, 'show']);
-    
-    // Crear nuevo árbol
-    Route::post('/arboles', [ArbolController::class, 'store']);
-    
-    // Actualizar árbol
-    Route::put('/arboles/{id}', [ArbolController::class, 'update']);
-    Route::post('/arboles/{id}', [ArbolController::class, 'update']); // Para FormData
-    
-    // Eliminar árbol
-    Route::delete('/arboles/{id}', [ArbolController::class, 'destroy']);
-});
-
-// Ruta de salud de la API
+// Health check
 Route::get('/health', function () {
     return response()->json([
-        'status' => 'ok',
-        'timestamp' => now()->toIso8601String(),
-        'service' => 'SIF API'
+        'status' => 'OK',
+        'timestamp' => now(),
+        'database' => DB::connection()->getPdo() ? 'Connected' : 'Disconnected'
     ]);
 });
+
+// Rutas de árboles
+Route::get('/arboles', [ArbolController::class, 'index']);
+Route::get('/arboles/{id}', [ArbolController::class, 'show']);
+Route::post('/arboles', [ArbolController::class, 'store']);
+Route::put('/arboles/{id}', [ArbolController::class, 'update']);
+Route::post('/arboles/{id}', [ArbolController::class, 'update']); // Para FormData con _method=PUT
+Route::delete('/arboles/{id}', [ArbolController::class, 'destroy']);
