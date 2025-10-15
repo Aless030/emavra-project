@@ -18,14 +18,14 @@ services:
       - DB_DATABASE=emavraforestaldb_dev
       - DB_USERNAME=emavraforestal_user
       - DB_PASSWORD=emavraforestal_pass
-      - APP_NAME=EMAVRA
+      - APP_NAME=EmavraLocal
       - APP_ENV=development
       - APP_DEBUG=true
-      - APP_URL=http://192.168.104.201:8002
+      - APP_URL=http://emavraforestalapidev.cochabamba.bo:8002
       - APP_KEY=base64:efdnbli2ujgcV4JEgrdhFo3eP1nUpBhGrzy7CCj3MfA=
-      - FRONTEND_URL=http://192.168.104.201:8001
-      - SANCTUM_STATEFUL_DOMAINS=192.168.104.201:8001
-      - SESSION_DOMAIN=.192.168.104.201
+      - FRONTEND_URL=http://emavraforestaldev.cochabamba.bo:8001
+      - SANCTUM_STATEFUL_DOMAINS=emavraforestaldev.cochabamba.bo:8001
+      - SESSION_DOMAIN=.cochabamba.bo
       - FILESYSTEM_DISK=public
     networks:
       - emavra_network
@@ -35,7 +35,7 @@ services:
     container_name: emavra-nginx-dev
     restart: unless-stopped
     ports:
-      - "8002:80"  # ⬅BACKEND 8002
+      - "8002:80"
     volumes:
       - ./emavra-backend:/var/www
       - ./emavra-backend/nginx/nginx.conf:/etc/nginx/conf.d/default.conf
@@ -50,13 +50,13 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - REACT_APP_API_URL=http://192.168.104.201:8002/api
-        - REACT_APP_STORAGE_URL=http://192.168.104.201:8002/storage
+        - REACT_APP_API_URL=http://emavraforestalapidev.cochabamba.bo:8002/api
+        - REACT_APP_STORAGE_URL=http://emavraforestalapidev.cochabamba.bo:8002/storage
         - REACT_APP_MAPBOX_TOKEN=pk.eyJ1IjoiYWxlc3NpcyIsImEiOiJjbGcxbHBtbHQwdDU5M2RubDFodjY3a2x0In0.NXe43GdM4PJBj7ow0Dnkpw
     container_name: emavra-frontend-dev
     restart: unless-stopped
     ports:
-      - "8001:80"  #FRONTEND puerto 8001
+      - "8001:80"
     depends_on:
       - nginx
     networks:
