@@ -54,7 +54,7 @@ services:
     container_name: emavra_nginx
     restart: unless-stopped
     ports:
-      - "8001:80"
+      - "8002:80"
     volumes:
       - ./emavra-backend:/var/www
       - ./emavra-backend/nginx/nginx.conf:/etc/nginx/conf.d/default.conf
@@ -77,8 +77,8 @@ services:
       - ./frontend:/app
       - /app/node_modules
     environment:
-      - REACT_APP_API_URL=http://localhost:8001/api
-      - REACT_APP_STORAGE_URL=http://localhost:8001/storage
+      - REACT_APP_API_URL=http://localhost:8002/api
+      - REACT_APP_STORAGE_URL=http://localhost:8002/storage
       - CHOKIDAR_USEPOLLING=true
     stdin_open: true
     tty: true

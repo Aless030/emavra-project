@@ -22,14 +22,29 @@ class ArbolController extends Controller
             'altura', 'diametroTronco', 'diametro_copa', 'codigo_arbol',
             'latitud', 'longitud', 'propiedad', 'otb', 'nombre_area_verde',
             'inspector', 'estado_fitosanitario', 'pdfUrl', 'qrUrl',
-            // ✅ CAMBIADO: PostgreSQL usa TO_CHAR en lugar de DATE_FORMAT
-            DB::raw("TO_CHAR(fecha_registro, 'DD/MM/YYYY') as fecha_formato"),
-            'hora_registro',
-            // ✅ CAMBIADO: PostgreSQL usa ST_AsText (igual que MySQL pero con COALESCE)
-            DB::raw("COALESCE(ST_AsText(coordenadas), NULL) as coordenadas")
-        ])->orderBy('fecha_registro', 'desc')
-          ->orderBy('hora_registro', 'desc')
-          ->get();
+            'fecha_registro', 'hora_registro'
+        ])
+        ->selectRaw("TO_CHAR(fecha_registro, 'DD/MM/YYYY') as fecha_formato")
+        ->orderBy('fecha_registro', 'desc')
+        ->orderBy('hora_registro', 'desc')
+        ->get()
+        ->map(function ($arbol) {
+            // Si coordenadas existe y no es null, intentar extraer como JSON o geometry
+            if ($arbol->coordenadas) {
+                try {
+                    // Si es geometry, obtener como WKT
+                    $coords = DB::selectOne(
+                        "SELECT ST_AsText(coordenadas) as wkt FROM arboles WHERE id = ?",
+                        [$arbol->id]
+                    );
+                    $arbol->coordenadas = $coords->wkt ?? null;
+                } catch (\Exception $e) {
+                    // Si falla, asumir que es JSON y dejarlo como está
+                    $arbol->coordenadas = $arbol->coordenadas;
+                }
+            }
+            return $arbol;
+        });
 
         return response()->json($arboles);
     }
@@ -44,12 +59,23 @@ class ArbolController extends Controller
             'altura', 'diametroTronco', 'diametro_copa', 'codigo_arbol',
             'latitud', 'longitud', 'propiedad', 'otb', 'nombre_area_verde',
             'inspector', 'estado_fitosanitario', 'pdfUrl', 'qrUrl',
-            // ✅ CAMBIADO: PostgreSQL
-            DB::raw("TO_CHAR(fecha_registro, 'DD/MM/YYYY') as fecha_formato"),
-            'hora_registro',
-            // ✅ CAMBIADO: COALESCE en lugar de IFNULL
-            DB::raw("COALESCE(ST_AsText(coordenadas), NULL) as coordenadas")
-        ])->findOrFail($id);
+            'fecha_registro', 'hora_registro'
+        ])
+        ->selectRaw("TO_CHAR(fecha_registro, 'DD/MM/YYYY') as fecha_formato")
+        ->findOrFail($id);
+
+        // Manejar coordenadas de forma segura
+        if ($arbol->coordenadas) {
+            try {
+                $coords = DB::selectOne(
+                    "SELECT ST_AsText(coordenadas) as wkt FROM arboles WHERE id = ?",
+                    [$arbol->id]
+                );
+                $arbol->coordenadas = $coords->wkt ?? null;
+            } catch (\Exception $e) {
+                $arbol->coordenadas = $arbol->coordenadas;
+            }
+        }
 
         return response()->json($arbol);
     }
@@ -134,12 +160,16 @@ class ArbolController extends Controller
 
             $arbol->save();
 
-            // ✅ CAMBIADO: Actualizar coordenadas espaciales en PostgreSQL
+            // Actualizar coordenadas espaciales en PostgreSQL
             if ($arbol->latitud && $arbol->longitud) {
-                DB::statement(
-                    "UPDATE arboles SET coordenadas = ST_SetSRID(ST_MakePoint(?, ?), 4326) WHERE id = ?",
-                    [$arbol->longitud, $arbol->latitud, $arbol->id]
-                );
+                try {
+                    DB::statement(
+                        "UPDATE arboles SET coordenadas = ST_SetSRID(ST_MakePoint(?, ?), 4326) WHERE id = ?",
+                        [$arbol->longitud, $arbol->latitud, $arbol->id]
+                    );
+                } catch (\Exception $e) {
+                    \Log::warning('No se pudieron actualizar coordenadas espaciales: ' . $e->getMessage());
+                }
             }
 
             // Generar QR (después de que el ID existe)

@@ -6,10 +6,12 @@ return [
     'allowed_origins' => [
         'http://localhost:3000',
         'http://127.0.0.1:3000',
-        'http://localhost:8001',  // ⬅️ FRONTEND local
+        'http://localhost:8001',
         'http://127.0.0.1:8001',
-        'http://192.168.104.201:8001',  // ⬅️ FRONTEND DEV
-        'http://192.168.104.201:8002',  // ⬅️ BACKEND DEV
+        'http://192.168.104.201:8001',
+        'http://192.168.104.201:8002',
+        'http://emavraforestaldev.cochabamba.bo:8001',      // ⬅️ AGREGAR
+        'http://emavraforestalapidev.cochabamba.bo:8002',  // ⬅️ AGREGAR
     ],
     'allowed_origins_patterns' => [],
     'allowed_headers' => [
